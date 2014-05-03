@@ -188,6 +188,42 @@ printList.call = function(obj) {
   return arrstr($array("(", buffer_string(buf), " . ", printObj.call(obj), ")"))
 }
 
+var findVar = function(sym, env) {
+  while (env.tag == "cons") {
+    var alist = env.car
+    while (alist.tag == "cons") {
+      if (alist.car.car == sym) {
+        return alist.car
+      }
+      alist = alist.cdr
+    }
+    env = env.cdr
+  }
+  return kNil
+}
+
+var g_env = makeCons(kNil, kNil)
+
+var addToEnv = function(sym, val, env) {
+  env.car = makeCons(makeCons(sym, val), env.car)
+}
+
+var eval = $new(null)
+eval.call = function(obj, env) {
+  if (obj.tag == "nil" || obj.tag == "num" || obj.tag == "error") {
+    return obj
+  } else if (obj.tag == "sym") {
+    var bind = findVar(obj, env)
+    if (bind == kNil) {
+      return makeError(arrstr($array(obj.data, " has no value")))
+    }
+    return bind.cdr
+  }
+  return makeError("noimpl")
+}
+
+addToEnv(makeSym("t"), makeSym("t"), g_env)
+
 var readline = function() {
   var stdin = file_stdin()
   var buf = buffer_new()
@@ -207,6 +243,6 @@ var readline = function() {
 
 var input = ""
 while ($istrue(input = readline())) {
-  $print(printObj.call(read.call(input)[0]))
+  $print(printObj.call(eval.call(read.call(input)[0], g_env)))
   $print("\n")
 }
