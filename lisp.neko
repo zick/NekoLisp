@@ -248,6 +248,16 @@ eval.call = function(obj, env) {
     var sym = safeCar(args)
     addToEnv(sym, expr, g_env)
     return sym
+  } else if (op == makeSym("setq")) {
+    var val = eval.call(safeCar(safeCdr(args)), env)
+    var sym = safeCar(args)
+    var bind = findVar(sym, env)
+    if (bind == kNil) {
+      addToEnv(sym, val, g_env)
+    } else {
+      bind.cdr = val
+    }
+    return val
   }
   return apply.call(eval.call(op, env), evlis.call(args, env), env)
 }
