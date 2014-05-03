@@ -208,6 +208,8 @@ var addToEnv = function(sym, val, env) {
   env.car = makeCons(makeCons(sym, val), env.car)
 }
 
+var apply = $new(null)
+var evlis = $new(null)
 var eval = $new(null)
 eval.call = function(obj, env) {
   if (obj.tag == "nil" || obj.tag == "num" || obj.tag == "error") {
@@ -219,9 +221,59 @@ eval.call = function(obj, env) {
     }
     return bind.cdr
   }
+
+  var op = safeCar(obj)
+  var args = safeCdr(obj)
+  if (op == makeSym("quote")) {
+    return safeCar(args)
+  } else if (op == makeSym("if")) {
+    if (eval.call(safeCar(args), env) == kNil) {
+      return eval.call(safeCar(safeCdr(safeCdr(args))), env)
+    }
+    return eval.call(safeCar(safeCdr(args)), env)
+  }
+  return apply.call(eval.call(op, env), evlis.call(args, env), env)
+}
+
+evlis.call = function(lst, env) {
+  var ret = kNil
+  while (lst.tag == "cons") {
+    var elm = eval.call(lst.car, env)
+    if (elm.tag == "error") {
+      return elm
+    }
+    ret = makeCons(elm, ret)
+    lst = lst.cdr
+  }
+  return nreverse(ret)
+}
+
+apply.call = function(fn, args, env) {
+  if (fn.tag == "error") {
+    reutrn fn
+  } else if (args.tag == "error") {
+    return args
+  } else if (fn.tag == "subr") {
+    return fn.data(args)
+  }
   return makeError("noimpl")
 }
 
+var subrCar = function(args) {
+  return safeCar(safeCar(args))
+}
+
+var subrCdr = function(args) {
+  return safeCdr(safeCar(args))
+}
+
+var subrCons = function(args) {
+  return makeCons(safeCar(args), safeCar(safeCdr(args)))
+}
+
+addToEnv(makeSym("car"), makeSubr(subrCar), g_env)
+addToEnv(makeSym("cdr"), makeSubr(subrCdr), g_env)
+addToEnv(makeSym("cons"), makeSubr(subrCons), g_env)
 addToEnv(makeSym("t"), makeSym("t"), g_env)
 
 var readline = function() {
