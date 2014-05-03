@@ -78,6 +78,16 @@ var nreverse = function(lst) {
   return ret
 }
 
+var pairlis = function(lst1, lst2) {
+  var ret = kNil
+  while (lst1.tag == "cons" && lst2.tag == "cons") {
+    ret = makeCons(makeCons(lst1.car, lst2.car), ret)
+    lst1 = lst1.cdr
+    lst2 = lst2.cdr
+  }
+  return nreverse(ret)
+}
+
 var isSpace = function(c) {
   return c == 0x09 || c == 0x0a || c == 0x0d || c == 0x20
 }
@@ -231,6 +241,8 @@ eval.call = function(obj, env) {
       return eval.call(safeCar(safeCdr(safeCdr(args))), env)
     }
     return eval.call(safeCar(safeCdr(args)), env)
+  } else if (op == makeSym("lambda")) {
+    return makeExpr(args, env)
   }
   return apply.call(eval.call(op, env), evlis.call(args, env), env)
 }
@@ -248,6 +260,15 @@ evlis.call = function(lst, env) {
   return nreverse(ret)
 }
 
+var progn = function(body, env) {
+  var ret = kNil
+  while (body.tag == "cons") {
+    ret = eval.call(body.car, env)
+    body = body.cdr
+  }
+  return ret
+}
+
 apply.call = function(fn, args, env) {
   if (fn.tag == "error") {
     reutrn fn
@@ -255,8 +276,10 @@ apply.call = function(fn, args, env) {
     return args
   } else if (fn.tag == "subr") {
     return fn.data(args)
+  } else if (fn.tag == "expr") {
+    return progn(fn.body, makeCons(pairlis(fn.args, args), fn.env))
   }
-  return makeError("noimpl")
+  return makeError(arrstr($array(printObj.call(fn), " is not function")))
 }
 
 var subrCar = function(args) {
