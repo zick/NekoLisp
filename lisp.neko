@@ -243,6 +243,11 @@ eval.call = function(obj, env) {
     return eval.call(safeCar(safeCdr(args)), env)
   } else if (op == makeSym("lambda")) {
     return makeExpr(args, env)
+  } else if (op == makeSym("defun")) {
+    var expr = makeExpr(safeCdr(args), env)
+    var sym = safeCar(args)
+    addToEnv(sym, expr, g_env)
+    return sym
   }
   return apply.call(eval.call(op, env), evlis.call(args, env), env)
 }
