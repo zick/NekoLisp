@@ -1,0 +1,135 @@
+var buffer_add = $loader.loadprim("std@buffer_add", 2);
+var buffer_add_char = $loader.loadprim("std@buffer_add_char", 2);
+var buffer_new = $loader.loadprim("std@buffer_new", 0);
+var buffer_string = $loader.loadprim("std@buffer_string", 1);
+var file_read_char = $loader.loadprim("std@file_read_char", 1);
+var file_stdin = $loader.loadprim("std@file_stdin", 0);
+
+var kLPar = 0x28
+var kRPar = 0x29
+var kQuote = 0x27
+var kNil = { tag => "nil", data => "nil" }
+
+var safeCar = function(obj) {
+  if (obj.tag == "cons") {
+    return obj.car
+  }
+  return kNil
+}
+
+var safeCdr = function(obj) {
+  if (obj.tag == "cons") {
+    return obj.cdr
+  }
+  return kNil
+}
+
+var makeError = function(str) {
+  return { tag => "error", data => str }
+}
+
+var sym_table = $hnew(256)
+var makeSym = function(str) {
+  if (str == "nil") {
+    return kNil
+  } else if ($not($hmem(sym_table, str, strcmp))) {
+    $hadd(sym_table, str, { tag => "sym", data => str })
+  }
+  return $hget(sym_table, str, strcmp)
+}
+
+var makeNum = function(num) {
+  return { tag => "num", data => num }
+}
+
+var makeCons = function(a, d) {
+  return { tag => "cons", car => a, cdr => d }
+}
+
+var makeSubr = function(fn) {
+  return { tag => "subr", data => fn }
+}
+
+var makeExpr = function(args, env) {
+  return { tag => "expr",
+           args => safeCar(args),
+           body => safeCdr(args),
+           env => env }
+}
+
+var isSpace = function(c) {
+  return c == 0x09 || c == 0x0a || c == 0x0d || c == 0x20
+}
+
+var isDelimiter = function(c) {
+  return c == kLPar || c == kRpar || c == kQuote || isSpace(c);
+}
+
+var skipSpaces = function(str) {
+  var i = 0;
+  while (i < $ssize(str)) {
+    if ($not(isSpace($sget(str, i)))) {
+      break;
+    }
+    i += 1
+  }
+  return $ssub(str, i, $ssize(str) - i)
+}
+
+var makeNumOrSym = function(str) {
+  if ($string($int(str)) == str) {
+    return makeNum($int(str))
+  }
+  return makeSym(str)
+}
+
+var readAtom = function(str) {
+  var next = ""
+  var i = 0
+  while (i < $ssize(str)) {
+    if (isDelimiter($sget(str, i))) {
+      next = $ssub(str, i, $ssize(str) - i)
+      str = $ssub(str, 0, i)
+      break;
+    }
+    i += 1
+  }
+  return $array(makeNumOrSym(str), next)
+}
+
+var read = function(str) {
+  str = skipSpaces(str)
+  if ($ssize(str) == 0) {
+    return makeError("empty input")
+  } else if ($sget(str, 0) == kRPar) {
+    return makeError("invalid syntax")
+  } else if ($sget(str, 0) == kLPar) {
+    return makeError("noimpl")
+  } else if ($sget(str, 0) == kQuote) {
+    return makeError("noimpl")
+  }
+  return readAtom(str)
+}
+
+var readline = function() {
+  var stdin = file_stdin()
+  var buf = buffer_new()
+  try {
+    while (true) {
+      var c = file_read_char(stdin)
+      if (c == 0x0a) {
+        break;
+      }
+      buffer_add_char(buf, c)
+    }
+  } catch e {
+    return false
+  }
+  return buffer_string(buf)
+}
+
+var input = ""
+while ($istrue(input = readline())) {
+  $print(read(input))
+  $print("\n")
+}
