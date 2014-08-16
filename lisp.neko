@@ -48,6 +48,13 @@ var makeSym = function(str) {
   return $hget(sym_table, str, strcmp)
 }
 
+var sym_t = makeSym("t")
+var sym_quote = makeSym("quote")
+var sym_if = makeSym("if")
+var sym_lambda = makeSym("lambda")
+var sym_defun = makeSym("defun")
+var sym_setq = makeSym("setq")
+
 var makeNum = function(num) {
   return { tag => "num", data => num }
 }
@@ -140,7 +147,7 @@ read.call = function(str) {
     return readList.call($ssub(str, 1, $ssize(str) - 1))
   } else if ($sget(str, 0) == kQuote) {
     var tmp = read.call($ssub(str, 1, $ssize(str) - 1))
-    return $array(makeCons(makeSym("quote"), makeCons(tmp[0], kNil)), tmp[1])
+    return $array(makeCons(sym_quote, makeCons(tmp[0], kNil)), tmp[1])
   }
   return readAtom(str)
 }
@@ -234,21 +241,21 @@ eval.call = function(obj, env) {
 
   var op = safeCar(obj)
   var args = safeCdr(obj)
-  if (op == makeSym("quote")) {
+  if (op == sym_quote) {
     return safeCar(args)
-  } else if (op == makeSym("if")) {
+  } else if (op == sym_if) {
     if (eval.call(safeCar(args), env) == kNil) {
       return eval.call(safeCar(safeCdr(safeCdr(args))), env)
     }
     return eval.call(safeCar(safeCdr(args)), env)
-  } else if (op == makeSym("lambda")) {
+  } else if (op == sym_lambda) {
     return makeExpr(args, env)
-  } else if (op == makeSym("defun")) {
+  } else if (op == sym_defun) {
     var expr = makeExpr(safeCdr(args), env)
     var sym = safeCar(args)
     addToEnv(sym, expr, g_env)
     return sym
-  } else if (op == makeSym("setq")) {
+  } else if (op == sym_setq) {
     var val = eval.call(safeCar(safeCdr(args)), env)
     var sym = safeCar(args)
     var bind = findVar(sym, env)
@@ -314,12 +321,12 @@ var subrEq = function(args) {
   var y = safeCar(safeCdr(args))
   if (x.tag == "num" && y.tag == "num") {
     if (x.data == y.data) {
-      return makeSym("t")
+      return sym_t
     }
     return kNil
   }
   if (x == y) {
-    return makeSym("t")
+    return sym_t
   }
   return kNil
 }
@@ -328,19 +335,19 @@ var subrAtom = function(args) {
   if (safeCar(args).tag == "cons") {
     return kNil
   }
-  return makeSym("t")
+  return sym_t
 }
 
 var subrNumberp = function(args) {
   if (safeCar(args).tag == "num") {
-    return makeSym("t")
+    return sym_t
   }
   return kNil
 }
 
 var subrSymbolp = function(args) {
   if (safeCar(args).tag == "sym") {
-    return makeSym("t")
+    return sym_t
   }
   return kNil
 }
@@ -387,7 +394,7 @@ addToEnv(makeSym("*"), makeSubr(subrMul), g_env)
 addToEnv(makeSym("-"), makeSubr(subrSub), g_env)
 addToEnv(makeSym("/"), makeSubr(subrDiv), g_env)
 addToEnv(makeSym("mod"), makeSubr(subrMod), g_env)
-addToEnv(makeSym("t"), makeSym("t"), g_env)
+addToEnv(sym_t, sym_t, g_env)
 
 var readline = function() {
   var stdin = file_stdin()
