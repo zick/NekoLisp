@@ -54,6 +54,9 @@ var sym_if = makeSym("if")
 var sym_lambda = makeSym("lambda")
 var sym_defun = makeSym("defun")
 var sym_setq = makeSym("setq")
+var sym_loop = makeSym("loop")
+var sym_return = makeSym("return")
+var loop_val = $new(null)
 
 var makeNum = function(num) {
   return { tag => "num", data => num }
@@ -228,6 +231,7 @@ var addToEnv = function(sym, val, env) {
 var apply = $new(null)
 var evlis = $new(null)
 var eval = $new(null)
+var loop = $new(null)
 eval.call = function(obj, env) {
   if (obj.tag == "nil" || obj.tag == "num" || obj.tag == "error") {
     return obj
@@ -244,7 +248,10 @@ eval.call = function(obj, env) {
   if (op == sym_quote) {
     return safeCar(args)
   } else if (op == sym_if) {
-    if (eval.call(safeCar(args), env) == kNil) {
+    var c = eval.call(safeCar(args), env)
+    if (c.tag == "error") {
+      return c
+    } else if (c == kNil) {
       return eval.call(safeCar(safeCdr(safeCdr(args))), env)
     }
     return eval.call(safeCar(safeCdr(args)), env)
@@ -257,6 +264,9 @@ eval.call = function(obj, env) {
     return sym
   } else if (op == sym_setq) {
     var val = eval.call(safeCar(safeCdr(args)), env)
+    if (val.tag == "error") {
+      return val
+    }
     var sym = safeCar(args)
     var bind = findVar(sym, env)
     if (bind == kNil) {
@@ -265,6 +275,11 @@ eval.call = function(obj, env) {
       bind.cdr = val
     }
     return val
+  } else if (op == sym_loop) {
+    return loop.call(args, env)
+  } else if (op == sym_return) {
+    loop_val.value = eval.call(safeCar(args), env)
+    return makeError("")
   }
   return apply.call(eval.call(op, env), evlis.call(args, env), env)
 }
@@ -286,9 +301,24 @@ var progn = function(body, env) {
   var ret = kNil
   while (body.tag == "cons") {
     ret = eval.call(body.car, env)
+    if (ret.tag == "error") {
+      return ret
+    }
     body = body.cdr
   }
   return ret
+}
+
+loop.call = function(body, env) {
+  while (true) {
+    var ret = progn(body, env)
+    if (ret.tag == "error") {
+      if (ret.data == "") {
+        return loop_val.value
+      }
+      return ret
+    }
+  }
 }
 
 apply.call = function(fn, args, env) {
